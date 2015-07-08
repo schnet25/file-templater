@@ -1,0 +1,19 @@
+</head>
+<body>
+<div id="wrapper">
+<div id="header">
+<img src="images/logo.png" alt="Owl Hours" class="logo" />
+<h1>basketbit</h1>
+<h2>software systems</h2>
+</div>
+<div id="menu">
+<ul>
+<li><a href="index.php">Home</a></li>
+<li><a href="products.php">Products</a></li>
+<li><a href="software.php">Software</a></li>
+<li><a href="contact.php">Contact</a></li>
+<li><a href="http://wiki.basketbit.com">Wiki</a></li>
+</ul>
+</div>
+<div id="content">
+
