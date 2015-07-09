@@ -1,5 +1,7 @@
 #!/bin/bash
 
+libtoolize --quiet
+
 aclocal 
 
 autoconf
