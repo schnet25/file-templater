@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/file-templater
+
+Name: @PACKAGE_NAME@
+Description: BasketBit File Template Library
+Version: @PACKAGE_VERSION@
+URL: http://www.basketbit.com
+Libs: -L${libdir}
+Cflags: -I${includedir}
+
