@@ -6,7 +6,9 @@
  */
 
 #include <iostream>
+#include <sstream>
 #include <fstream>
+#include <vector>
 #include <main/FileTemplater.hpp>
 
 namespace BasketBit {
@@ -164,9 +166,29 @@ bool FileTemplater::initialize()
 
 bool FileTemplater::create()
 {
+	// output files
+    std::vector<std::ofstream*> outputFiles;
+
     for (std::set<std::string>::const_iterator it=m_dynamicFiles.begin(); it!=m_dynamicFiles.end(); ++it)
     {
-        std::cout << "file: " << *it << ";" << std::endl;
+        std::stringstream ss;
+        ss << m_outputDirectory << "/" << *it << "." << m_fileExtension;
+        std::ofstream* curFile = new std::ofstream(ss.str().c_str(), std::ofstream::out|std::ofstream::binary);
+        if (!curFile->is_open())
+        {
+            delete curFile;
+            std::cerr << "Could not open '" << ss.str() << "'" << std::endl;
+            return false;
+        }
+        outputFiles.push_back(curFile);
+        std::cout << "file: " << ss.str() << ";" << std::endl;
+    }
+
+    // free data
+    std::vector<std::ofstream*>::iterator it;
+    for (it=outputFiles.begin(); it!=outputFiles.end(); ++it)
+    {
+        delete *it;
     }
 
     for (std::list<std::string>::const_iterator it=m_fileOrder.begin(); it!=m_fileOrder.end(); ++it)
