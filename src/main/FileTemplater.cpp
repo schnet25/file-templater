@@ -5,10 +5,8 @@
  *      Author: schnet
  */
 
-#include <iostream>
 #include <sstream>
-#include <fstream>
-#include <vector>
+#include <streambuf>
 #include <main/FileTemplater.hpp>
 
 namespace BasketBit {
@@ -22,14 +20,14 @@ const std::string FileTemplater::OUTPUT_DIRECTORY_KEY("outputDirectory");
 const std::string FileTemplater::STRICT_KEY("strict");
 
 FileTemplater::FileTemplater(const std::string& configFileName) :
-        m_configFileName(configFileName),
-        m_fileExtension("html"),
-        m_inputDirectory(""),
-        m_outputDirectory(""),
-        m_website(""),
-        m_strict(false)
+                m_configFileName(configFileName),
+                m_fileExtension("html"),
+                m_inputDirectory(""),
+                m_outputDirectory(""),
+                m_website(""),
+                m_strict(false),
+                m_verbose(true)
 {
-
 }
 
 FileTemplater::~FileTemplater()
@@ -48,13 +46,15 @@ bool FileTemplater::initialize()
         return false;
     }
     // read in json
-    if (reader.parse(configFile, jsonData, false))
+    if (!reader.parse(configFile, jsonData, false))
     {
         std::cerr << "Cannot parse JSON configuration file" << std::endl;
+        return false;
     }
-    // TODO
-    std::cout << jsonData.toStyledString() << std::endl;
-
+    if (m_verbose)
+    {
+        std::cout << "input data: " << std::endl << jsonData.toStyledString() << std::endl;
+    }
     // check for (required) files
     if (jsonData.isMember(DYNAMIC_FILES_KEY) && jsonData[DYNAMIC_FILES_KEY].isArray())
     {
@@ -63,7 +63,7 @@ bool FileTemplater::initialize()
         {
             if ((*it).isString())
             {
-                m_dynamicFiles.insert((*it).asString());
+                m_dynamicFiles.push_back((*it).asString());
             }
             else
             {
@@ -166,10 +166,10 @@ bool FileTemplater::initialize()
 
 bool FileTemplater::create()
 {
-	// output files
+    // output files and output file iterator
     std::vector<std::ofstream*> outputFiles;
 
-    for (std::set<std::string>::const_iterator it=m_dynamicFiles.begin(); it!=m_dynamicFiles.end(); ++it)
+    for (std::list<std::string>::const_iterator it=m_dynamicFiles.begin(); it!=m_dynamicFiles.end(); ++it)
     {
         std::stringstream ss;
         ss << m_outputDirectory << "/" << *it << "." << m_fileExtension;
@@ -180,23 +180,108 @@ bool FileTemplater::create()
             std::cerr << "Could not open '" << ss.str() << "'" << std::endl;
             return false;
         }
+        else if (m_verbose)
+        {
+            std::cout << "Opened file: '" << ss.str() << "'" << std::endl;
+        }
         outputFiles.push_back(curFile);
-        std::cout << "file: " << ss.str() << ";" << std::endl;
     }
+    // step through 'file order'
+    for (std::list<std::string>::const_iterator it=m_fileOrder.begin(); it!=m_fileOrder.end(); ++it)
+    {
+        if ((*it).empty())
+        {
+            std::cout << "Ignoring empty file entry" << std::endl;
+        }
+        if ((*it).at(0)=='*')
+        {
+            // dynamic page, build file suffix from iterator
+            std::string fileSuffix = (*it).substr(1);
 
-    // free data
-    std::vector<std::ofstream*>::iterator it;
-    for (it=outputFiles.begin(); it!=outputFiles.end(); ++it)
+            // get 2 iterators, 1 for input & 1 for output
+            std::list<std::string>::const_iterator iIt = m_dynamicFiles.begin();
+            std::vector<std::ofstream*>::iterator oIt = outputFiles.begin();
+            for ( ; iIt!=m_dynamicFiles.end(); ++iIt, ++oIt)
+            {
+                std::stringstream ss;
+                ss << m_inputDirectory << "/" << *iIt << fileSuffix;
+                std::cout << "TODO handle dynamic: " << ss.str() << std::endl;
+                std::ifstream curFile(ss.str().c_str(), std::ifstream::in|std::ifstream::binary);
+                if (curFile.is_open())
+                {
+                    if (m_verbose)
+                    {
+                        std::cout << "Opened dynamic file '" << ss.str() << "'" << std::endl;
+                    }
+                    appendSingleFile(*oIt, curFile);
+
+                }
+                else if (m_strict)
+                {
+                    std::cerr << "Error, mode is set to strict and input file '" << ss.str() << "' does not exist" << std::endl;
+                    it = m_fileOrder.end();
+                    break;
+                }
+                else if (m_verbose)
+                {
+                    std::cout << "Skipping '" << ss.str() << "' as it does not exist" << std::endl;
+                }
+
+            }
+        }
+        else
+        {
+            std::stringstream ss;
+            ss << m_inputDirectory << "/" << *it;
+            std::ifstream curFile(ss.str().c_str(), std::ifstream::in|std::ifstream::binary);
+            if (curFile.is_open())
+            {
+                if (m_verbose)
+                {
+                    std::cout << "Opened file '" << ss.str() << "'" << std::endl;
+                }
+                appendToAllFiles(outputFiles, curFile);
+        {
+
+        }
+            }
+            else
+            {
+                std::cerr << "Could not open required file '" << ss.str() << "'" << std::endl;
+                break;
+            }
+        }
+    }
+    // finally, free data
+    for (std::vector<std::ofstream*>::iterator it=outputFiles.begin(); it!=outputFiles.end(); ++it)
     {
         delete *it;
     }
+    return true;
+}
 
-    for (std::list<std::string>::const_iterator it=m_fileOrder.begin(); it!=m_fileOrder.end(); ++it)
+bool FileTemplater::appendToAllFiles(std::vector<std::ofstream*> outputFiles, const std::ifstream& inputFile)
+{
+    // read input file into a string
+    std::stringstream ss;
+    ss << inputFile.rdbuf();
+    std::string str = ss.str();
+    // output it to file
+    for (std::vector<std::ofstream*>::iterator it=outputFiles.begin(); it!=outputFiles.end(); ++it)
     {
-        std::cout << "order: " << *it << "; " << std::endl;
+        (*it)->write(str.c_str(), str.size());
     }
-    // TODO output files
+    return true;
+}
 
+bool FileTemplater::appendSingleFile(std::ofstream* outputFile, const std::ifstream& inputFile)
+{
+    // read input file into a string
+    std::stringstream ss;
+    ss << inputFile.rdbuf();
+    std::string str = ss.str();
+    // output it to file
+    outputFile->write(str.c_str(), str.size());
     return true;
 }
 

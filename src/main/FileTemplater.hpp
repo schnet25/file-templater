@@ -8,9 +8,12 @@
 #ifndef FILETEMPLATER_HPP_
 #define FILETEMPLATER_HPP_
 
+#include <iostream>
 #include <cstring>
-#include <set>
+#include <string>
 #include <list>
+#include <vector>
+#include <fstream>
 #include <json/json.h>
 
 
@@ -33,6 +36,8 @@ class FileTemplater {
 
         bool initialize();
         bool create();
+        bool appendToAllFiles(std::vector<std::ofstream*> outputFiles, const std::ifstream& inputFile);
+        bool appendSingleFile(std::ofstream* outputFile, const std::ifstream& inputFile);
 
     private:
         std::string m_configFileName;
@@ -41,8 +46,9 @@ class FileTemplater {
         std::string m_outputDirectory;
         std::string m_website;
         bool m_strict;
-        std::set<std::string> m_dynamicFiles;
+        std::list<std::string> m_dynamicFiles;
         std::list<std::string> m_fileOrder;
+        bool m_verbose;
 };
 
 } /* namespace BasketBit */

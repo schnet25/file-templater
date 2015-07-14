@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([file-templater], [0.1], [schnet25@gmail.com])
+AC_INIT([file-templater], [0.5], [schnet25@gmail.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src/main/fileTemplaterMain.cpp])
 
