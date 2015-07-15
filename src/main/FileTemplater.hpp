@@ -30,6 +30,7 @@ class FileTemplater {
         static const std::string INPUT_DIRECTORY_KEY;
         static const std::string OUTPUT_DIRECTORY_KEY;
         static const std::string STRICT_KEY;
+        static const std::string VERBOSE_KEY;
 
         FileTemplater(const std::string& configFileName);
         virtual ~FileTemplater();

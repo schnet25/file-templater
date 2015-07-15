@@ -18,15 +18,16 @@ const std::string FileTemplater::WEBSITE_KEY("website");
 const std::string FileTemplater::INPUT_DIRECTORY_KEY("inputDirectory");
 const std::string FileTemplater::OUTPUT_DIRECTORY_KEY("outputDirectory");
 const std::string FileTemplater::STRICT_KEY("strict");
+const std::string FileTemplater::VERBOSE_KEY("verbose");
 
 FileTemplater::FileTemplater(const std::string& configFileName) :
-                m_configFileName(configFileName),
-                m_fileExtension("html"),
-                m_inputDirectory(""),
-                m_outputDirectory(""),
-                m_website(""),
-                m_strict(false),
-                m_verbose(true)
+        m_configFileName(configFileName),
+        m_fileExtension("html"),
+        m_inputDirectory(""),
+        m_outputDirectory(""),
+        m_website(""),
+        m_strict(false),
+        m_verbose(false)
 {
 }
 
@@ -159,8 +160,18 @@ bool FileTemplater::initialize()
             std::cerr << "Cannot parse JSON field '" << STRICT_KEY << "' as a boolean...Ignoring value" << std::endl;
         }
     }
-
-
+    // check for (optional) boolean verbose flag
+    if (jsonData.isMember(VERBOSE_KEY))
+    {
+        if (jsonData[VERBOSE_KEY].isBool())
+        {
+            m_verbose = jsonData[VERBOSE_KEY].asBool();
+        }
+        else
+        {
+            std::cerr << "Cannot parse JSON field '" << VERBOSE_KEY << "' as a boolean...Ignoring value" << std::endl;
+        }
+    }
     return true;
 }
 
@@ -205,7 +216,6 @@ bool FileTemplater::create()
             {
                 std::stringstream ss;
                 ss << m_inputDirectory << "/" << *iIt << fileSuffix;
-                std::cout << "TODO handle dynamic: " << ss.str() << std::endl;
                 std::ifstream curFile(ss.str().c_str(), std::ifstream::in|std::ifstream::binary);
                 if (curFile.is_open())
                 {
@@ -251,6 +261,10 @@ bool FileTemplater::create()
                 break;
             }
         }
+    }
+    if (m_verbose)
+    {
+        std::cout << "Closing files" << std::endl;
     }
     // finally, free data
     for (std::vector<std::ofstream*>::iterator it=outputFiles.begin(); it!=outputFiles.end(); ++it)
