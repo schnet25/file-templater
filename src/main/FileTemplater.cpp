@@ -37,8 +37,6 @@ FileTemplater::~FileTemplater()
 
 bool FileTemplater::initialize()
 {
-    Json::Value jsonData;
-    Json::Reader reader;
     // open configuration file
     std::ifstream configFile(m_configFileName.c_str(), std::ifstream::binary);
     if (!configFile.is_open())
@@ -46,20 +44,35 @@ bool FileTemplater::initialize()
         std::cerr << "Cannot open configuration file '" << m_configFileName << "'" << std::endl;
         return false;
     }
+    Json::Value jsonData;
+    Json::Reader reader;
     // read in json
     if (!reader.parse(configFile, jsonData, false))
     {
         std::cerr << "Cannot parse JSON configuration file" << std::endl;
         return false;
     }
+    // check for (optional) boolean verbose flag
+    if (jsonData.isMember(VERBOSE_KEY))
+    {
+        if (jsonData[VERBOSE_KEY].isBool())
+        {
+            m_verbose = jsonData[VERBOSE_KEY].asBool();
+        }
+        else
+        {
+            std::cerr << "Cannot parse JSON field '" << VERBOSE_KEY << "' as a boolean...Ignoring value" << std::endl;
+        }
+    }
     if (m_verbose)
     {
         std::cout << "input data: " << std::endl << jsonData.toStyledString() << std::endl;
     }
+
     // check for (required) files
     if (jsonData.isMember(DYNAMIC_FILES_KEY) && jsonData[DYNAMIC_FILES_KEY].isArray())
     {
-        Json::Value tmp = jsonData[DYNAMIC_FILES_KEY];
+        Json::Value tmp = jsonData.get(DYNAMIC_FILES_KEY, 0);
         for (Json::Value::iterator it=tmp.begin(); it!=tmp.end(); ++it)
         {
             if ((*it).isString())
@@ -81,7 +94,7 @@ bool FileTemplater::initialize()
     // check for (required) file order
     if (jsonData.isMember(FILE_ORDER_KEY) && jsonData[FILE_ORDER_KEY].isArray())
     {
-        Json::Value tmp = jsonData[FILE_ORDER_KEY];
+        Json::Value tmp = jsonData.get(FILE_ORDER_KEY, 0);
         for (Json::Value::iterator it=tmp.begin(); it!=tmp.end(); ++it)
         {
             if ((*it).isString())
@@ -118,6 +131,10 @@ bool FileTemplater::initialize()
         if (jsonData[INPUT_DIRECTORY_KEY].isString())
         {
             m_inputDirectory = jsonData[INPUT_DIRECTORY_KEY].asString();
+            if (!m_inputDirectory.empty())
+            {
+                m_inputDirectory += "/";
+            }
         }
         else
         {
@@ -130,6 +147,10 @@ bool FileTemplater::initialize()
         if (jsonData[OUTPUT_DIRECTORY_KEY].isString())
         {
             m_outputDirectory = jsonData[OUTPUT_DIRECTORY_KEY].asString();
+            if (!m_outputDirectory.empty())
+            {
+                m_outputDirectory += "/";
+            }
         }
         else
         {
@@ -160,18 +181,7 @@ bool FileTemplater::initialize()
             std::cerr << "Cannot parse JSON field '" << STRICT_KEY << "' as a boolean...Ignoring value" << std::endl;
         }
     }
-    // check for (optional) boolean verbose flag
-    if (jsonData.isMember(VERBOSE_KEY))
-    {
-        if (jsonData[VERBOSE_KEY].isBool())
-        {
-            m_verbose = jsonData[VERBOSE_KEY].asBool();
-        }
-        else
-        {
-            std::cerr << "Cannot parse JSON field '" << VERBOSE_KEY << "' as a boolean...Ignoring value" << std::endl;
-        }
-    }
+    configFile.close();
     return true;
 }
 
@@ -179,11 +189,10 @@ bool FileTemplater::create()
 {
     // output files and output file iterator
     std::vector<std::ofstream*> outputFiles;
-
     for (std::list<std::string>::const_iterator it=m_dynamicFiles.begin(); it!=m_dynamicFiles.end(); ++it)
     {
         std::stringstream ss;
-        ss << m_outputDirectory << "/" << *it << "." << m_fileExtension;
+        ss << m_outputDirectory << *it << "." << m_fileExtension;
         std::ofstream* curFile = new std::ofstream(ss.str().c_str(), std::ofstream::out|std::ofstream::binary);
         if (!curFile->is_open())
         {
@@ -215,7 +224,7 @@ bool FileTemplater::create()
             for ( ; iIt!=m_dynamicFiles.end(); ++iIt, ++oIt)
             {
                 std::stringstream ss;
-                ss << m_inputDirectory << "/" << *iIt << fileSuffix;
+                ss << m_inputDirectory << *iIt << fileSuffix;
                 std::ifstream curFile(ss.str().c_str(), std::ifstream::in|std::ifstream::binary);
                 if (curFile.is_open())
                 {
@@ -242,7 +251,7 @@ bool FileTemplater::create()
         else
         {
             std::stringstream ss;
-            ss << m_inputDirectory << "/" << *it;
+            ss << m_inputDirectory << *it;
             std::ifstream curFile(ss.str().c_str(), std::ifstream::in|std::ifstream::binary);
             if (curFile.is_open())
             {
