@@ -7,6 +7,6 @@ Name: @PACKAGE_NAME@
 Description: BasketBit File Template Library
 Version: @PACKAGE_VERSION@
 URL: http://www.basketbit.com
-Libs: -L${libdir}
+Libs: -L${libdir} -lboost_program_options -lboost_filesystem
 Cflags: -I${includedir}
 
