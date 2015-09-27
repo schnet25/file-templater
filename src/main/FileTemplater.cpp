@@ -5,20 +5,36 @@
  *      Author: schnet
  */
 
+#include <main/FileTemplater.hpp>
 #include <sstream>
 #include <streambuf>
-#include <main/FileTemplater.hpp>
+#include <json/json.h>
 
+namespace fs=boost::filesystem;
 namespace BasketBit {
 
 const std::string FileTemplater::DYNAMIC_FILES_KEY("dynamicFiles");
 const std::string FileTemplater::FILE_ORDER_KEY("fileOrder");
+const std::string FileTemplater::ADDITIONAL_FILES_KEY("additionalFiles");
 const std::string FileTemplater::FILE_EXTENSION_KEY("fileExtension");
 const std::string FileTemplater::WEBSITE_KEY("website");
 const std::string FileTemplater::INPUT_DIRECTORY_KEY("inputDirectory");
 const std::string FileTemplater::OUTPUT_DIRECTORY_KEY("outputDirectory");
 const std::string FileTemplater::STRICT_KEY("strict");
 const std::string FileTemplater::VERBOSE_KEY("verbose");
+/*
+ {
+    "website" : "http://www.basketbit.com",
+    "dynamicFiles" : ["index","owlhours","filetemplater"],
+    "fileOrder" : ["header1.txt", "header2.txt", "*.body", "footer.txt"],
+    "additionalFiles" : ["layout.css", "images"],
+    "fileExtension" : "html",
+    "inputDirectory" : "basketbit",
+    "outputDirectory" : "/opt/www/basketbit",
+    "strict" : false,
+    "verbose" : false
+}
+*/
 
 FileTemplater::FileTemplater(const std::string& configFileName) :
         m_configFileName(configFileName),
@@ -181,6 +197,32 @@ bool FileTemplater::initialize()
             std::cerr << "Cannot parse JSON field '" << STRICT_KEY << "' as a boolean...Ignoring value" << std::endl;
         }
     }
+    // check for (optional) addtional files
+    if (jsonData.isMember(ADDITIONAL_FILES_KEY))
+    {
+        // if it exists, it has to be correctly formatted (or errror)
+        if (jsonData[ADDITIONAL_FILES_KEY].isArray())
+        {
+            Json::Value tmp = jsonData.get(ADDITIONAL_FILES_KEY, 0);
+            for (Json::Value::iterator it=tmp.begin(); it!=tmp.end(); ++it)
+            {
+                if ((*it).isString())
+                {
+                    m_additionalFiles.push_back((*it).asString());
+                }
+                else
+                {
+                    std::cerr << "Problem parsing '" << ADDITIONAL_FILES_KEY << "'. Cannot cast '" << *it << "' as string" << std::endl;
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            std::cerr << "Optional field '" << ADDITIONAL_FILES_KEY << "' must be an array of file/directory names" << std::endl;
+            return false;
+        }
+    }
     configFile.close();
     return true;
 }
@@ -271,6 +313,33 @@ bool FileTemplater::create()
             }
         }
     }
+
+    // copy additional files
+    boost::filesystem::path sink(m_outputDirectory);
+    for (std::list<std::string>::const_iterator it=m_additionalFiles.begin(); it!=m_additionalFiles.end(); ++it)
+    {
+        // build up full input file name
+        std::stringstream ss;
+        ss << m_inputDirectory << *it;
+        // check if the file/directory exists
+        boost::filesystem::path source(ss.str());
+        if (boost::filesystem::exists(source))
+        {
+            if (boost::filesystem::is_directory(source))
+            {
+                copyDirectory(source, sink);
+            }
+            else
+            {
+                copyFile(source, sink);
+            }
+        }
+        else
+        {
+            std::cout << "Additional file '" << ss.str() << "' does not exist. Skipping." << std::endl;
+        }
+    }
+
     if (m_verbose)
     {
         std::cout << "Closing files" << std::endl;
@@ -281,6 +350,19 @@ bool FileTemplater::create()
         delete *it;
     }
     return true;
+}
+
+bool FileTemplater::copyFile(const fs::path& source, const fs::path& sink)
+{
+    std::cout << "Copying file '" << source << "' to directory '" << sink  << "; " << source.filename() << std::endl;
+//    fs::copy_file(source, sink / source.filename());
+    return true;
+}
+
+bool FileTemplater::copyDirectory(const fs::path& source, const fs::path& sink)
+{
+    std::cout << " TODO copy directory" << std::endl;
+    return false;
 }
 
 bool FileTemplater::appendToAllFiles(std::vector<std::ofstream*> outputFiles, const std::ifstream& inputFile)
@@ -307,5 +389,84 @@ bool FileTemplater::appendSingleFile(std::ofstream* outputFile, const std::ifstr
     outputFile->write(str.c_str(), str.size());
     return true;
 }
-
+/*
+bool copyDir(
+    boost::filesystem::path const & source,
+    boost::filesystem::path const & destination
+)
+{
+    namespace fs = boost::filesystem;
+    try
+    {
+        // Check whether the function call is valid
+        if(
+            !fs::exists(source) ||
+            !fs::is_directory(source)
+        )
+        {
+            std::cerr << "Source directory " << source.string()
+                << " does not exist or is not a directory." << '\n'
+            ;
+            return false;
+        }
+        if(fs::exists(destination))
+        {
+            std::cerr << "Destination directory " << destination.string()
+                << " already exists." << '\n'
+            ;
+            return false;
+        }
+        // Create the destination directory
+        if(!fs::create_directory(destination))
+        {
+            std::cerr << "Unable to create destination directory"
+                << destination.string() << '\n'
+            ;
+            return false;
+        }
+    }
+    catch(fs::filesystem_error const & e)
+    {
+        std::cerr << e.what() << '\n';
+        return false;
+    }
+    // Iterate through the source directory
+    for(
+        fs::directory_iterator file(source);
+        file != fs::directory_iterator(); ++file
+    )
+    {
+        try
+        {
+            fs::path current(file->path());
+            if(fs::is_directory(current))
+            {
+                // Found directory: Recursion
+                if(
+                    !copyDir(
+                        current,
+                        destination / current.filename()
+                    )
+                )
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                // Found file: Copy
+                fs::copy_file(
+                    current,
+                    destination / current.filename()
+                );
+            }
+        }
+        catch(fs::filesystem_error const & e)
+        {
+            std:: cerr << e.what() << '\n';
+        }
+    }
+    return true;
+}
+*/
 } /* namespace BasketBit */

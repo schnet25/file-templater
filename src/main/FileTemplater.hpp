@@ -14,8 +14,7 @@
 #include <list>
 #include <vector>
 #include <fstream>
-#include <json/json.h>
-
+#include <boost/filesystem.hpp>
 
 namespace BasketBit {
 
@@ -25,6 +24,7 @@ class FileTemplater {
 
         static const std::string DYNAMIC_FILES_KEY;
         static const std::string FILE_ORDER_KEY;
+        static const std::string ADDITIONAL_FILES_KEY;
         static const std::string FILE_EXTENSION_KEY;
         static const std::string WEBSITE_KEY;
         static const std::string INPUT_DIRECTORY_KEY;
@@ -39,6 +39,8 @@ class FileTemplater {
         bool create();
         bool appendToAllFiles(std::vector<std::ofstream*> outputFiles, const std::ifstream& inputFile);
         bool appendSingleFile(std::ofstream* outputFile, const std::ifstream& inputFile);
+        bool copyFile(const boost::filesystem::path& source, const boost::filesystem::path& sink);
+        bool copyDirectory(const boost::filesystem::path& source, const boost::filesystem::path& sink);
 
     private:
         std::string m_configFileName;
@@ -49,6 +51,7 @@ class FileTemplater {
         bool m_strict;
         std::list<std::string> m_dynamicFiles;
         std::list<std::string> m_fileOrder;
+        std::list<std::string> m_additionalFiles;
         bool m_verbose;
 };
 

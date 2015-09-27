@@ -19,7 +19,7 @@ int main (int argc, char** argv)
     po::options_description desc("Parameters");
     desc.add_options()
                 ("help,h", "This help message")
-                ("config,c", po::value<std::string>(&configFileName), "Configuration file");
+                ("config,c", po::value<std::string>(&configFileName)->default_value(""), "Configuration file");
 
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv).options(desc).run(), vm);
