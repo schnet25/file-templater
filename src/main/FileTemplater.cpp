@@ -327,11 +327,11 @@ bool FileTemplater::create()
         {
             if (boost::filesystem::is_directory(source))
             {
-                copyDirectory(source, sink);
+                copyDirectory(source, sink / *it);
             }
             else
             {
-                copyFile(source, sink);
+                copyFile(source, sink / source.filename());
             }
         }
         else
@@ -352,17 +352,61 @@ bool FileTemplater::create()
     return true;
 }
 
-bool FileTemplater::copyFile(const fs::path& source, const fs::path& sink)
+bool FileTemplater::copyFile(const fs::path& source, const fs::path& destination)
 {
-    std::cout << "Copying file '" << source << "' to directory '" << sink  << "; " << source.filename() << std::endl;
-//    fs::copy_file(source, sink / source.filename());
-    return true;
+    try
+    {
+        if (m_verbose)
+        {
+            std::cout << "Copying file '" << source << "' to '" << destination << std::endl;
+        }
+        fs::copy_file(source, destination, fs::copy_option::overwrite_if_exists);
+        return true;
+    }
+    catch( boost::filesystem::filesystem_error const & e )
+    {
+        std::cerr << "Error! " << e.what() << '\n';
+    }
+
+    return false;
 }
 
-bool FileTemplater::copyDirectory(const fs::path& source, const fs::path& sink)
+bool FileTemplater::copyDirectory(const fs::path& source, const fs::path& destination)
 {
-    std::cout << " TODO copy directory" << std::endl;
-    return false;
+    try
+    {
+        // create directory if it doesn't exist
+        if(!boost::filesystem::exists(destination) &&
+           !boost::filesystem::create_directory(destination))
+        {
+            std::cerr << "Error! Unable to create destination directory: " << destination << std::endl;
+            return false;
+        }
+        // iterate through directory
+        for( boost::filesystem::directory_iterator file(source);
+                file!=boost::filesystem::directory_iterator(); ++file)
+        {
+            // get current file
+            boost::filesystem::path current(file->path());
+            if(boost::filesystem::is_directory(current))
+            {
+                // directory, recursively call this function
+                if(!copyDirectory(current, destination / current.filename()))
+                {
+                    return false;
+                }
+            }
+            else if (!copyFile(current, destination / current.filename()))
+            {
+                return false;
+            }
+        }
+    }
+    catch( boost::filesystem::filesystem_error const & e )
+    {
+        std::cerr << "Error! " << e.what() << '\n';
+    }
+    return true;
 }
 
 bool FileTemplater::appendToAllFiles(std::vector<std::ofstream*> outputFiles, const std::ifstream& inputFile)
@@ -389,84 +433,5 @@ bool FileTemplater::appendSingleFile(std::ofstream* outputFile, const std::ifstr
     outputFile->write(str.c_str(), str.size());
     return true;
 }
-/*
-bool copyDir(
-    boost::filesystem::path const & source,
-    boost::filesystem::path const & destination
-)
-{
-    namespace fs = boost::filesystem;
-    try
-    {
-        // Check whether the function call is valid
-        if(
-            !fs::exists(source) ||
-            !fs::is_directory(source)
-        )
-        {
-            std::cerr << "Source directory " << source.string()
-                << " does not exist or is not a directory." << '\n'
-            ;
-            return false;
-        }
-        if(fs::exists(destination))
-        {
-            std::cerr << "Destination directory " << destination.string()
-                << " already exists." << '\n'
-            ;
-            return false;
-        }
-        // Create the destination directory
-        if(!fs::create_directory(destination))
-        {
-            std::cerr << "Unable to create destination directory"
-                << destination.string() << '\n'
-            ;
-            return false;
-        }
-    }
-    catch(fs::filesystem_error const & e)
-    {
-        std::cerr << e.what() << '\n';
-        return false;
-    }
-    // Iterate through the source directory
-    for(
-        fs::directory_iterator file(source);
-        file != fs::directory_iterator(); ++file
-    )
-    {
-        try
-        {
-            fs::path current(file->path());
-            if(fs::is_directory(current))
-            {
-                // Found directory: Recursion
-                if(
-                    !copyDir(
-                        current,
-                        destination / current.filename()
-                    )
-                )
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                // Found file: Copy
-                fs::copy_file(
-                    current,
-                    destination / current.filename()
-                );
-            }
-        }
-        catch(fs::filesystem_error const & e)
-        {
-            std:: cerr << e.what() << '\n';
-        }
-    }
-    return true;
-}
-*/
+
 } /* namespace BasketBit */
