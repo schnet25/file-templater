@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: boost
+Description: The boost C++ libraries
+Version: @version@
+URL: http://www.boost.org
+Libs: -L${libdir} -lboost_program_options -lboost_filesystem -lboost_system
+Cflags: -I${includedir}
+
